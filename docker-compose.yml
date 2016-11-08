@@ -20,10 +20,7 @@ services:
     ports:
       - 9090:9090
     links:
-      - cadvisor:cadvisor
       - alertmanager:alertmanager
-    depends_on:
-      - cadvisor
   
   node-exporter:
     image: prom/node-exporter
