@@ -33,7 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 @Configuration
 @EnableMetrics(proxyTargetClass = true)
-public class MetricsConfiguration extends MetricsConfigurerAdapter implements ServletContextInitializer {
+public class MetricsConfiguration extends MetricsConfigurerAdapter {
 
     private static final String PROP_METRIC_REG_JVM_MEMORY = "jvm.memory";
     private static final String PROP_METRIC_REG_JVM_GARBAGE = "jvm.garbage";
@@ -94,14 +94,30 @@ public class MetricsConfiguration extends MetricsConfigurerAdapter implements Se
         }
     }
 
-    @Override
-    public void onStartup(ServletContext servletContext) throws ServletException {
-        log.info("Initializing Metrics Prometheus endpoint at /prometheusMetrics");
-        CollectorRegistry collectorRegistry = new CollectorRegistry();
-        collectorRegistry.register(new DropwizardExports(metricRegistry));
-        servletContext
-            .addServlet("prometheusMetrics", new MetricsServlet(collectorRegistry))
-            .addMapping("/prometheusMetrics");
+    @Configuration
+    @ConditionalOnClass(CollectorRegistry.class)
+    public static class PrometheusRegistry implements ServletContextInitializer{
+
+        private final Logger log = LoggerFactory.getLogger(PrometheusRegistry.class);
+
+        @Inject
+        private MetricRegistry metricRegistry;
+
+        @Inject
+        private JHipsterProperties jHipsterProperties;
+
+        @Override
+        public void onStartup(ServletContext servletContext) throws ServletException {
+            if(jHipsterProperties.getMetrics().getPrometheus().isEnabled()) {
+                String endpoint = jHipsterProperties.getMetrics().getPrometheus().getEndpoint();
+                log.info("Initializing Metrics Prometheus endpoint at {}", endpoint);
+                CollectorRegistry collectorRegistry = new CollectorRegistry();
+                collectorRegistry.register(new DropwizardExports(metricRegistry));
+                servletContext
+                    .addServlet("prometheusMetrics", new MetricsServlet(collectorRegistry))
+                    .addMapping(endpoint);
+            }
+        }
     }
 
     @Configuration
